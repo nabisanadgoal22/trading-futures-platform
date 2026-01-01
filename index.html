@@ -1,0 +1,870 @@
+﻿<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پنل ترید فیوچرز - موجودی 370$</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Tahoma, sans-serif; }
+        :root {
+            --bg-primary: #0f1419; --bg-secondary: #1e2329; --bg-tertiary: #2a2e39;
+            --color-primary: #f0b90b; --color-text: #eaecef; --color-text-secondary: #848e9c;
+            --color-success: #0ecb81; --color-danger: #f6465d; --color-border: #2b3139;
+        }
+        body { background-color: var(--bg-primary); color: var(--color-text); direction: rtl; height: 100vh; overflow: hidden; }
+        
+        /* هدر */
+        .header { background: var(--bg-secondary); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); }
+        .symbol { font-size: 22px; font-weight: bold; color: var(--color-text); }
+        .price-info { display: flex; flex-direction: column; }
+        .current-price { font-size: 26px; font-weight: bold; }
+        .price-change { padding: 4px 10px; border-radius: 4px; font-size: 14px; }
+        .positive { color: var(--color-success); background: rgba(14, 203, 129, 0.1); }
+        .negative { color: var(--color-danger); background: rgba(246, 70, 93, 0.1); }
+        
+        .user-balance { background: var(--bg-tertiary); padding: 12px 18px; border-radius: 8px; }
+        .balance-label { font-size: 12px; color: var(--color-text-secondary); }
+        .balance-amount { font-size: 20px; font-weight: bold; }
+        .balance-pnl { font-size: 12px; }
+        
+        .details-btn { background: var(--color-primary); color: black; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-left: 10px; }
+        
+        /* کانتینر اصلی */
+        .container { display: flex; height: calc(100vh - 80px); }
+        
+        /* چارت */
+        .chart-section { flex: 1; background: var(--bg-primary); display: flex; flex-direction: column; }
+        .chart-container { flex: 1; }
+        #tradingview_chart { width: 100%; height: 100%; }
+        
+        /* سایدبار */
+        .sidebar { width: 350px; background: var(--bg-secondary); border-left: 1px solid var(--color-border); padding: 20px; overflow-y: auto; }
+        
+        /* بخش سفارش */
+        .order-section { margin-bottom: 25px; }
+        .section-title { color: var(--color-text-secondary); font-size: 14px; margin-bottom: 15px; display: flex; justify-content: space-between; }
+        
+        .order-type-selector { display: flex; background: var(--bg-tertiary); border-radius: 6px; margin-bottom: 15px; }
+        .order-type-btn { flex: 1; padding: 10px; border: none; background: none; color: var(--color-text-secondary); cursor: pointer; }
+        .order-type-btn.active { background: var(--bg-secondary); color: var(--color-primary); border-radius: 4px; }
+        
+        .input-group { margin-bottom: 15px; }
+        .input-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; color: var(--color-text-secondary); }
+        .form-input { width: 100%; padding: 12px; background: var(--bg-tertiary); border: 1px solid var(--color-border); border-radius: 6px; color: var(--color-text); }
+        
+        .action-buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-buy, .btn-sell { flex: 1; padding: 14px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-buy { background: var(--color-success); color: white; }
+        .btn-sell { background: var(--color-danger); color: white; }
+        
+        /* پوزیشن باز */
+        .position-info { background: var(--bg-tertiary); padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
+        .info-label { color: var(--color-text-secondary); }
+        
+        /* مودال جزئیات */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
+        .modal-content { background: var(--bg-secondary); margin: 50px auto; width: 90%; max-width: 800px; border-radius: 12px; padding: 20px; max-height: 85vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .close-modal { background: none; border: none; color: var(--color-text-secondary); font-size: 24px; cursor: pointer; }
+        
+        /* تایمر */
+        .stop-timer { background: rgba(246, 70, 93, 0.1); border: 1px solid rgba(246, 70, 93, 0.3); padding: 15px; border-radius: 8px; text-align: center; margin-top: 20px; }
+        .timer-value { font-size: 24px; font-weight: bold; color: var(--color-danger); font-family: monospace; }
+        
+        /* فوتر */
+        .footer { background: var(--bg-secondary); padding: 12px 20px; border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; }
+        .footer-tabs { display: flex; gap: 20px; }
+        .footer-tab { background: none; border: none; color: var(--color-text-secondary); cursor: pointer; }
+        .footer-tab.active { color: var(--color-primary); }
+        
+        /* نمودار PnL */
+        .pnl-chart-container { height: 200px; margin-bottom: 20px; }
+        
+        /* تاریخچه */
+        .history-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--color-border); font-size: 13px; }
+    </style>
+</head>
+<body>
+    <!-- مودال جزئیات -->
+    <div id="tradeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 جزئیات کامل ترید</h2>
+                <button class="close-modal" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                    <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px;">
+                        <div style="color: var(--color-text-secondary); font-size: 13px;">سمت ترید</div>
+                        <div style="color: var(--color-success); font-weight: bold; font-size: 16px;">لانگ (خرید)</div>
+                    </div>
+                    <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px;">
+                        <div style="color: var(--color-text-secondary); font-size: 13px;">جفت ارز</div>
+                        <div style="font-weight: bold; font-size: 16px;">BTC/USDT</div>
+                    </div>
+                    <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px;">
+                        <div style="color: var(--color-text-secondary); font-size: 13px;">اندازه پوزیشن</div>
+                        <div style="font-weight: bold; font-size: 16px;">0.002 BTC</div>
+                    </div>
+                    <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px;">
+                        <div style="color: var(--color-text-secondary); font-size: 13px;">قیمت ورود</div>
+                        <div style="font-weight: bold; font-size: 16px;">$68,150.00</div>
+                    </div>
+                    <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px;">
+                        <div style="color: var(--color-text-secondary); font-size: 13px;">قیمت فعلی</div>
+                        <div style="font-weight: bold; font-size: 16px;" id="modalPrice">$68,542.30</div>
+                    </div>
+                    <div style="background: var(--color-success); padding: 15px; border-radius: 8px;">
+                        <div style="color: white; font-size: 13px;">سود لحظه‌ای</div>
+                        <div style="color: white; font-weight: bold; font-size: 18px;" id="modalPnl">+$78.46</div>
+                    </div>
+                    <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px;">
+                        <div style="color: var(--color-text-secondary); font-size: 13px;">حداکثر سود</div>
+                        <div style="color: var(--color-success); font-weight: bold; font-size: 16px;">+$190.00</div>
+                    </div>
+                    <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 8px;">
+                        <div style="color: var(--color-text-secondary); font-size: 13px;">حداکثر ضرر</div>
+                        <div style="color: var(--color-danger); font-weight: bold; font-size: 16px;">-$179.00</div>
+                    </div>
+                </div>
+                
+                <div class="pnl-chart-container">
+                    <h3 style="margin-bottom: 15px;">📈 نمودار سود/ضرر لحظه‌ای</h3>
+                    <canvas id="pnlChart" width="700" height="180" style="background: var(--bg-primary); border-radius: 6px; width: 100%;"></canvas>
+                </div>
+                
+                <div>
+                    <h3 style="margin-bottom: 15px;">🕒 تاریخچه تغییرات قیمت</h3>
+                    <div id="priceHistory" style="max-height: 200px; overflow-y: auto; background: var(--bg-tertiary); border-radius: 8px; padding: 15px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- هدر -->
+    <div class="header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="symbol">BTC/USDT</div>
+            <div class="price-info">
+                <div class="current-price">$<span id="currentPrice">68,542.30</span></div>
+                <div class="price-change positive" id="priceChange">+0.58%</div>
+            </div>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button class="details-btn" onclick="openModal()">
+                <i class="fas fa-chart-bar"></i> جزئیات ترید
+            </button>
+            
+            <div class="user-balance">
+                <div class="balance-label">موجودی کل</div>
+                <div class="balance-amount"><span id="totalBalance">448.46</span> USDT</div>
+                <div class="balance-pnl positive" id="totalPnl">سود کل: +78.46 دلار</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- کانتینر اصلی -->
+    <div class="container">
+        <!-- بخش چارت -->
+        <div class="chart-section">
+            <div class="chart-container">
+                <div id="tradingview_chart"></div>
+            </div>
+            
+            <div style="padding: 15px; background: var(--bg-secondary); border-top: 1px solid var(--color-border);">
+                <div style="display: flex; gap: 10px;">
+                    <button class="order-type-btn active" onclick="changeTimeframe('15')">15m</button>
+                    <button class="order-type-btn" onclick="changeTimeframe('60')">1h</button>
+                    <button class="order-type-btn" onclick="changeTimeframe('240')">4h</button>
+                    <button class="order-type-btn" onclick="changeTimeframe('D')">1d</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- سایدبار -->
+        <div class="sidebar">
+            <!-- سفارش جدید -->
+            <div class="order-section">
+                <div class="section-title">
+                    <span>سفارش جدید</span>
+                    <span class="positive">لوریج: 10x</span>
+                </div>
+                
+                <div class="order-type-selector">
+                    <button class="order-type-btn active">Limit</button>
+                    <button class="order-type-btn">Market</button>
+                    <button class="order-type-btn">Stop</button>
+                </div>
+                
+                <div class="input-group">
+                    <div class="input-label">
+                        <span>قیمت (USDT)</span>
+                        <span>Mark: <span id="markPrice">68,542.30</span></span>
+                    </div>
+                    <input type="text" class="form-input" id="orderPrice" value="68,500.00">
+                </div>
+                
+                <div class="input-group">
+                    <div class="input-label">
+                        <span>مقدار (BTC)</span>
+                        <span id="availableBalance">Available: 0.0065</span>
+                    </div>
+                    <input type="text" class="form-input" id="orderAmount" value="0.001">
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="order-type-btn">5x</button>
+                    <button class="order-type-btn active">10x</button>
+                    <button class="order-type-btn">20x</button>
+                    <button class="order-type-btn">50x</button>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn-buy" onclick="buyOrder()">Buy / Long</button>
+                    <button class="btn-sell" onclick="sellOrder()">Sell / Short</button>
+                </div>
+            </div>
+            
+            <!-- پوزیشن باز -->
+            <div class="order-section">
+                <div class="section-title">
+                    <span>پوزیشن باز</span>
+                    <span class="positive" id="positionPnl">+$78.46</span>
+                </div>
+                
+                <div class="position-info">
+                    <div class="info-row">
+                        <span class="info-label">سمت / اندازه</span>
+                        <span><span class="positive">لانگ</span> • 0.002 BTC</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">قیمت ورود</span>
+                        <span>$68,150.00</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">قیمت فعلی</span>
+                        <span>$<span id="positionPrice">68,542.30</span></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">سود/زیان</span>
+                        <span class="positive" id="positionPnlValue">+78.46 (+10.6%)</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">لیکوئید</span>
+                        <span>$65,200.00</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">مارجین استفاده شده</span>
+                        <span>$13.63</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">سود/ضرر بالقوه</span>
+                        <span style="color: var(--color-text-secondary);">-179$ تا +190$</span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button class="btn-sell" style="flex: 1;" onclick="closePosition()">بستن پوزیشن</button>
+                    <button class="details-btn" style="flex: 1;" onclick="setTakeProfit()">تنظیم TP</button>
+                </div>
+            </div>
+            
+            <!-- تایمر -->
+            <div class="stop-timer">
+                <div class="timer-value" id="stopTimer">07:48:32</div>
+                <div style="color: var(--color-danger); font-size: 12px; margin-top: 5px;">زمان باقی‌مانده تا توقف خودکار</div>
+            </div>
+            
+            <!-- مارکت -->
+            <div style="margin-top: 25px;">
+                <div class="section-title">
+                    <span>مارکت</span>
+                </div>
+                <div id="marketList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- فوتر -->
+    <div class="footer">
+        <div class="footer-tabs">
+            <button class="footer-tab active">Open Positions (1)</button>
+            <button class="footer-tab">Open Orders (0)</button>
+            <button class="footer-tab">Order History</button>
+            <button class="footer-tab">Balance</button>
+        </div>
+        
+        <div style="display: flex; gap: 25px;">
+            <div>
+                <div style="font-size: 12px; color: var(--color-text-secondary);">مارژین آزاد</div>
+                <div style="font-weight: bold;">434.83 USDT</div>
+            </div>
+            <div>
+                <div style="font-size: 12px; color: var(--color-text-secondary);">مارژین استفاده‌شده</div>
+                <div style="font-weight: bold;">13.63 USDT</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== تنظیمات اصلی ==========
+        let account = {
+            baseBalance: 370.00,          // موجودی اصلی
+            currentBalance: 448.46,       // موجودی فعلی
+            pnl: 78.46,                   // سود/ضرر فعلی
+            maxProfit: 190,               // حداکثر سود
+            maxLoss: -179,                // حداکثر ضرر
+            
+            position: {
+                isOpen: true,
+                side: 'long',
+                size: 0.002,              // 0.002 BTC
+                entryPrice: 68150.00,
+                currentPrice: 68542.30,
+                liquidationPrice: 65200.00
+            },
+            
+            timerSeconds: 8 * 60 * 60 - (11 * 60 + 28),
+            pnlHistory: [],
+            priceHistory: [],
+            chartWidget: null,
+            changeCounter: 0,
+            volatilityMode: 'normal',
+            lastBigChange: 0
+        };
+        
+        // ========== راه‌اندازی چارت TradingView ==========
+        function initTradingView() {
+            if (typeof TradingView === 'undefined') {
+                setTimeout(initTradingView, 100);
+                return;
+            }
+            
+            account.chartWidget = new TradingView.widget({
+                "container_id": "tradingview_chart",
+                "width": "100%",
+                "height": "100%",
+                "symbol": "BINANCE:BTCUSDT",
+                "interval": "15",
+                "timezone": "Asia/Tehran",
+                "theme": "dark",
+                "style": "1",
+                "locale": "en",
+                "toolbar_bg": "#1e2329",
+                "enable_publishing": false,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": false,
+                "details": true,
+                "studies": ["Volume@tv-basicstudies"]
+            });
+        }
+        
+        // ========== تغییر تایم‌فریم ==========
+        function changeTimeframe(tf) {
+            if (account.chartWidget) {
+                account.chartWidget.chart().setResolution(tf);
+            }
+            
+            // آپدیت دکمه‌های فعال
+            document.querySelectorAll('.order-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
+        // ========== تایمر ==========
+        function startTimer() {
+            const timer = document.getElementById('stopTimer');
+            setInterval(() => {
+                account.timerSeconds--;
+                const hours = Math.floor(account.timerSeconds / 3600);
+                const minutes = Math.floor((account.timerSeconds % 3600) / 60);
+                const seconds = account.timerSeconds % 60;
+                timer.textContent = `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+                
+                if (account.timerSeconds <= 0) {
+                    alert('⏰ زمان معاملات به پایان رسید!');
+                    if (account.position.isOpen) {
+                        closePosition();
+                    }
+                }
+            }, 1000);
+        }
+        
+        // ========== شبیه‌سازی تغییر قیمت با نوسان متغیر ==========
+        function simulatePriceChange() {
+            setInterval(() => {
+                account.changeCounter++;
+                
+                // تغییر حالت نوسان هر 5 تغییر
+                if (account.changeCounter % 5 === 0) {
+                    const modes = ['low', 'normal', 'high'];
+                    account.volatilityMode = modes[Math.floor(Math.random() * modes.length)];
+                }
+                
+                // تعیین اندازه تغییر بر اساس حالت
+                let changeSize = 0;
+                switch (account.volatilityMode) {
+                    case 'low':
+                        changeSize = (Math.random() - 0.5) * 30; // تغییر کوچک: ±15 دلار
+                        break;
+                    case 'normal':
+                        changeSize = (Math.random() - 0.5) * 100; // تغییر متوسط: ±50 دلار
+                        break;
+                    case 'high':
+                        changeSize = (Math.random() - 0.5) * 300; // تغییر بزرگ: ±150 دلار
+                        account.lastBigChange = Date.now();
+                        break;
+                }
+                
+                // گاهی یک تغییر ناگهانی بزرگ (10% شانس)
+                if (Math.random() < 0.1 && Date.now() - account.lastBigChange > 30000) {
+                    changeSize = (Math.random() - 0.5) * 500; // تغییر خیلی بزرگ
+                    account.lastBigChange = Date.now();
+                }
+                
+                // اعمال تغییر قیمت
+                account.position.currentPrice += changeSize;
+                
+                // محدود کردن قیمت بین 66,500 تا 70,200
+                account.position.currentPrice = Math.max(66500, Math.min(70200, account.position.currentPrice));
+                
+                // محاسبه PnL جدید
+                calculatePnl();
+                
+                // محدود کردن PnL بین -179 تا +190
+                if (account.pnl > account.maxProfit) {
+                    account.pnl = account.maxProfit;
+                    account.position.currentPrice = account.position.entryPrice + (account.maxProfit / account.position.size);
+                }
+                if (account.pnl < account.maxLoss) {
+                    account.pnl = account.maxLoss;
+                    account.position.currentPrice = account.position.entryPrice + (account.maxLoss / account.position.size);
+                }
+                
+                // آپدیت موجودی
+                account.currentBalance = account.baseBalance + account.pnl;
+                
+                // محدود کردن موجودی بین 191 تا 560
+                if (account.currentBalance > 560) account.currentBalance = 560;
+                if (account.currentBalance < 191) account.currentBalance = 191;
+                
+                // آپدیت نمایش
+                updateDisplay();
+                addToHistory();
+                
+                // آپدیت نمودار PnL
+                updatePnlChart();
+                
+            }, 3000); // هر 3 ثانیه
+        }
+        
+        // ========== محاسبه PnL ==========
+        function calculatePnl() {
+            if (!account.position.isOpen) {
+                account.pnl = 0;
+                return;
+            }
+            
+            const priceDiff = account.position.currentPrice - account.position.entryPrice;
+            
+            if (account.position.side === 'long') {
+                account.pnl = priceDiff * account.position.size;
+            } else {
+                account.pnl = -priceDiff * account.position.size;
+            }
+            
+            // ذخیره در تاریخچه
+            account.pnlHistory.push({
+                time: new Date(),
+                pnl: account.pnl,
+                price: account.position.currentPrice
+            });
+            
+            // حفظ فقط 20 رکورد آخر
+            if (account.pnlHistory.length > 20) {
+                account.pnlHistory.shift();
+            }
+        }
+        
+        // ========== آپدیت نمایش ==========
+        function updateDisplay() {
+            // قیمت
+            const price = account.position.currentPrice.toFixed(2);
+            document.getElementById('currentPrice').textContent = price;
+            document.getElementById('positionPrice').textContent = price;
+            document.getElementById('modalPrice').textContent = price;
+            document.getElementById('markPrice').textContent = price;
+            
+            // PnL و موجودی
+            const pnlElement = document.getElementById('totalPnl');
+            const positionPnlElement = document.getElementById('positionPnl');
+            const positionPnlValue = document.getElementById('positionPnlValue');
+            const modalPnl = document.getElementById('modalPnl');
+            const totalBalance = document.getElementById('totalBalance');
+            
+            totalBalance.textContent = account.currentBalance.toFixed(2);
+            
+            if (account.pnl > 0) {
+                const pnlPercent = (account.pnl / 13.63 * 100).toFixed(1);
+                pnlElement.textContent = `سود کل: +${account.pnl.toFixed(2)} دلار`;
+                pnlElement.className = "balance-pnl positive";
+                positionPnlElement.textContent = `+$${account.pnl.toFixed(2)}`;
+                positionPnlElement.className = "positive";
+                positionPnlValue.textContent = `+${account.pnl.toFixed(2)} (+${pnlPercent}%)`;
+                positionPnlValue.className = "positive";
+                modalPnl.textContent = `+$${account.pnl.toFixed(2)}`;
+            } else {
+                const pnlPercent = (account.pnl / 13.63 * 100).toFixed(1);
+                pnlElement.textContent = `ضرر کل: ${account.pnl.toFixed(2)} دلار`;
+                pnlElement.className = "balance-pnl negative";
+                positionPnlElement.textContent = `$${account.pnl.toFixed(2)}`;
+                positionPnlElement.className = "negative";
+                positionPnlValue.textContent = `${account.pnl.toFixed(2)} (${pnlPercent}%)`;
+                positionPnlValue.className = "negative";
+                modalPnl.textContent = `$${account.pnl.toFixed(2)}`;
+            }
+            
+            // درصد تغییر
+            const changePercent = ((account.position.currentPrice - 68150) / 68150 * 100);
+            const changeElement = document.getElementById('priceChange');
+            if (changePercent >= 0) {
+                changeElement.textContent = `+${changePercent.toFixed(2)}%`;
+                changeElement.className = "price-change positive";
+            } else {
+                changeElement.textContent = `${changePercent.toFixed(2)}%`;
+                changeElement.className = "price-change negative";
+            }
+            
+            // آپدیت موجودی قابل استفاده
+            const freeMargin = account.currentBalance - 13.63;
+            const availableForTrade = freeMargin > 0 ? (freeMargin * 0.9 / account.position.currentPrice) : 0;
+            document.getElementById('availableBalance').textContent = `Available: ${availableForTrade.toFixed(4)}`;
+            
+            // آپدیت فوتر
+            document.querySelector('.footer div:nth-child(2) div:nth-child(2)').textContent = 
+                freeMargin.toFixed(2) + ' USDT';
+        }
+        
+        // ========== نمودار PnL ==========
+        function initPnlChart() {
+            // داده‌های اولیه برای نمودار
+            for (let i = 0; i < 20; i++) {
+                account.pnlHistory.push({
+                    time: new Date(Date.now() - (19 - i) * 3000),
+                    pnl: Math.sin(i * 0.3) * 40 + 40
+                });
+            }
+            
+            updatePnlChart();
+        }
+        
+        function updatePnlChart() {
+            const canvas = document.getElementById('pnlChart');
+            const ctx = canvas.getContext('2d');
+            
+            // پاک کردن کانواس
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (account.pnlHistory.length < 2) return;
+            
+            // تنظیمات
+            const padding = 20;
+            const chartWidth = canvas.width - padding * 2;
+            const chartHeight = canvas.height - padding * 2;
+            
+            // پیدا کردن min و max
+            let minPnl = Math.min(...account.pnlHistory.map(p => p.pnl));
+            let maxPnl = Math.max(...account.pnlHistory.map(p => p.pnl));
+            const range = maxPnl - minPnl || 1;
+            
+            // رسم خط
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = account.pnl > 0 ? '#0ecb81' : '#f6465d';
+            
+            account.pnlHistory.forEach((point, index) => {
+                const x = padding + (index / (account.pnlHistory.length - 1)) * chartWidth;
+                const y = padding + chartHeight - ((point.pnl - minPnl) / range) * chartHeight;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // پر کردن زیر خط
+            ctx.fillStyle = account.pnl > 0 ? 'rgba(14, 203, 129, 0.1)' : 'rgba(246, 70, 93, 0.1)';
+            ctx.lineTo(padding + chartWidth, padding + chartHeight);
+            ctx.lineTo(padding, padding + chartHeight);
+            ctx.closePath();
+            ctx.fill();
+            
+            // نوشته‌ها
+            ctx.fillStyle = '#848e9c';
+            ctx.font = '12px Tahoma';
+            ctx.textAlign = 'center';
+            ctx.fillText('نمودار سود/ضرر لحظه‌ای', canvas.width / 2, 15);
+            
+            // خطوط راهنما
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            
+            // خط صفر
+            const zeroY = padding + chartHeight - ((0 - minPnl) / range) * chartHeight;
+            ctx.beginPath();
+            ctx.setLineDash([5, 3]);
+            ctx.moveTo(padding, zeroY);
+            ctx.lineTo(padding + chartWidth, zeroY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.fillStyle = '#848e9c';
+            ctx.textAlign = 'right';
+            ctx.fillText(`حداکثر: +${account.maxProfit}$`, canvas.width - 5, 15);
+            ctx.textAlign = 'left';
+            ctx.fillText(`حداقل: ${account.maxLoss}$`, 5, 15);
+        }
+        
+        // ========== تاریخچه قیمت ==========
+        function addToHistory() {
+            const history = document.getElementById('priceHistory');
+            const time = new Date().toLocaleTimeString('fa-IR');
+            
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            
+            // تعیین وضعیت نوسان
+            let volatilityIcon = '➡';
+            switch (account.volatilityMode) {
+                case 'low': volatilityIcon = '📉'; break;
+                case 'high': volatilityIcon = '📈'; break;
+            }
+            
+            item.innerHTML = `
+                <span style="color: var(--color-text-secondary);">${time} ${volatilityIcon}</span>
+                <span style="font-weight: bold;">$${account.position.currentPrice.toFixed(2)}</span>
+                <span style="color: ${account.pnl > 0 ? 'var(--color-success)' : 'var(--color-danger)'};">
+                    ${account.pnl > 0 ? '+' : ''}${account.pnl.toFixed(2)}
+                </span>
+            `;
+            
+            history.insertBefore(item, history.firstChild);
+            
+            // حذف آیتم‌های قدیمی
+            while (history.children.length > 10) {
+                history.removeChild(history.lastChild);
+            }
+        }
+        
+        // ========== مودال ==========
+        function openModal() {
+            document.getElementById('tradeModal').style.display = 'block';
+            updatePnlChart();
+        }
+        
+        function closeModal() {
+            document.getElementById('tradeModal').style.display = 'none';
+        }
+        
+        // ========== دکمه‌های معاملاتی ==========
+        function buyOrder() {
+            const amount = parseFloat(document.getElementById('orderAmount').value);
+            const price = parseFloat(document.getElementById('orderPrice').value.replace(/,/g,''));
+            
+            if (account.position.isOpen) {
+                alert('⚠️ شما از قبل پوزیشن باز دارید!');
+                return;
+            }
+            
+            if (isNaN(amount) || amount <= 0 || isNaN(price) || price <= 0) {
+                alert('⚠️ لطفاً مقادیر معتبر وارد کنید!');
+                return;
+            }
+            
+            account.position.isOpen = true;
+            account.position.side = 'long';
+            account.position.size = amount;
+            account.position.entryPrice = price;
+            account.position.currentPrice = price;
+            
+            alert(`✅ پوزیشن لانگ باز شد!\nمقدار: ${amount} BTC\nقیمت: $${price.toFixed(2)}\nحداکثر سود: +${account.maxProfit}$\nحداکثر ضرر: ${account.maxLoss}$`);
+            
+            // آپدیت نمایش
+            document.querySelector('.position-info .info-row:nth-child(1) span:nth-child(2)').innerHTML = 
+                `<span class="positive">لانگ</span> • ${amount} BTC`;
+            document.querySelector('.position-info .info-row:nth-child(2) span:nth-child(2)').textContent = 
+                `$${price.toFixed(2)}`;
+                
+            // آپدیت بادج
+            document.querySelector('.footer-tab.active').innerHTML = 'Open Positions (1)';
+        }
+        
+        function sellOrder() {
+            const amount = parseFloat(document.getElementById('orderAmount').value);
+            const price = parseFloat(document.getElementById('orderPrice').value.replace(/,/g,''));
+            
+            if (account.position.isOpen) {
+                alert('⚠️ شما از قبل پوزیشن باز دارید!');
+                return;
+            }
+            
+            if (isNaN(amount) || amount <= 0 || isNaN(price) || price <= 0) {
+                alert('⚠️ لطفاً مقادیر معتبر وارد کنید!');
+                return;
+            }
+            
+            account.position.isOpen = true;
+            account.position.side = 'short';
+            account.position.size = amount;
+            account.position.entryPrice = price;
+            account.position.currentPrice = price;
+            
+            alert(`✅ پوزیشن شورت باز شد!\nمقدار: ${amount} BTC\nقیمت: $${price.toFixed(2)}\nحداکثر سود: +${account.maxProfit}$\nحداکثر ضرر: ${account.maxLoss}$`);
+            
+            // آپدیت نمایش
+            document.querySelector('.position-info .info-row:nth-child(1) span:nth-child(2)').innerHTML = 
+                `<span class="negative">شورت</span> • ${amount} BTC`;
+            document.querySelector('.position-info .info-row:nth-child(2) span:nth-child(2)').textContent = 
+                `$${price.toFixed(2)}`;
+                
+            // آپدیت بادج
+            document.querySelector('.footer-tab.active').innerHTML = 'Open Positions (1)';
+        }
+        
+        function closePosition() {
+            if (!account.position.isOpen) {
+                alert('⚠️ پوزیشن بازی ندارید!');
+                return;
+            }
+            
+            const finalPnl = account.pnl;
+            account.baseBalance += finalPnl;
+            
+            // محدود کردن موجودی اصلی
+            if (account.baseBalance > 560) account.baseBalance = 560;
+            if (account.baseBalance < 191) account.baseBalance = 191;
+            
+            account.currentBalance = account.baseBalance;
+            account.pnl = 0;
+            account.position.isOpen = false;
+            
+            // نمایش پیام
+            let message = `🎯 پوزیشن ${account.position.side === 'long' ? 'لانگ' : 'شورت'} بسته شد!\n`;
+            message += `سود/ضرر نهایی: ${finalPnl > 0 ? '+' : ''}$${finalPnl.toFixed(2)}\n`;
+            message += `موجودی جدید: $${account.baseBalance.toFixed(2)}`;
+            
+            alert(message);
+            
+            // ریست نمایش پوزیشن
+            updateDisplay();
+            document.querySelector('.position-info .info-row:nth-child(1) span:nth-child(2)').innerHTML = 
+                `<span class="positive">لانگ</span> • 0.002 BTC`;
+            document.querySelector('.position-info .info-row:nth-child(2) span:nth-child(2)').textContent = 
+                `$68,150.00`;
+                
+            // آپدیت بادج
+            document.querySelector('.footer-tab.active').innerHTML = 'Open Positions (0)';
+        }
+        
+        function setTakeProfit() {
+            const tpPrice = prompt('قیمت تیک پروفیت را وارد کنید:', (account.position.currentPrice * 1.02).toFixed(2));
+            if (tpPrice && !isNaN(parseFloat(tpPrice))) {
+                alert(`✅ تیک پروفیت روی $${tpPrice} تنظیم شد`);
+            }
+        }
+        
+        // ========== بارگذاری مارکت ==========
+        function loadMarket() {
+            const markets = [
+                {symbol: 'BTC/USDT', price: '68,542.30', change: '+0.58%', color: 'positive'},
+                {symbol: 'ETH/USDT', price: '3,542.80', change: '+1.34%', color: 'positive'},
+                {symbol: 'SOL/USDT', price: '172.45', change: '-0.92%', color: 'negative'},
+                {symbol: 'XRP/USDT', price: '0.5245', change: '+0.55%', color: 'positive'},
+                {symbol: 'ADA/USDT', price: '0.4523', change: '-0.32%', color: 'negative'},
+                {symbol: 'DOGE/USDT', price: '0.1234', change: '+1.22%', color: 'positive'}
+            ];
+            
+            const container = document.getElementById('marketList');
+            container.innerHTML = '';
+            
+            markets.forEach(market => {
+                const div = document.createElement('div');
+                div.style.cssText = 'padding: 10px 0; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; cursor: pointer; transition: background 0.2s;';
+                div.onmouseover = () => div.style.background = 'rgba(255,255,255,0.05)';
+                div.onmouseout = () => div.style.background = 'transparent';
+                div.onclick = () => {
+                    document.querySelector('.symbol').textContent = market.symbol;
+                    alert(`جفت ارز به ${market.symbol} تغییر کرد`);
+                };
+                
+                div.innerHTML = `
+                    <span style="font-weight: bold;">${market.symbol}</span>
+                    <span>${market.price}</span>
+                    <span class="${market.color}">${market.change}</span>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        // ========== راه‌اندازی اولیه ==========
+        window.onload = function() {
+            initTradingView();
+            startTimer();
+            simulatePriceChange();
+            loadMarket();
+            initPnlChart();
+            updateDisplay();
+            
+            // پر کردن تاریخچه اولیه
+            for (let i = 0; i < 5; i++) {
+                addToHistory();
+            }
+            
+            console.log('🚀 پلتفرم ترید فیوچرز فعال شد!');
+            console.log('💰 موجودی اصلی:', account.baseBalance, '$');
+            console.log('📈 سود/ضرر فعلی:', account.pnl, '$');
+            console.log('🎯 محدودیت‌ها:', account.maxLoss, '$ تا +', account.maxProfit, '$');
+        };
+        
+        // بستن مودال با کلیک خارج
+        window.onclick = function(event) {
+            const modal = document.getElementById('tradeModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        };
+        
+        // کلیدهای میانبر
+        document.addEventListener('keydown', function(event) {
+            // Ctrl+D برای جزئیات
+            if (event.ctrlKey && event.key === 'd') {
+                event.preventDefault();
+                openModal();
+            }
+            // Ctrl+B برای خرید
+            if (event.ctrlKey && event.key === 'b') {
+                event.preventDefault();
+                buyOrder();
+            }
+            // Ctrl+S برای فروش
+            if (event.ctrlKey && event.key === 's') {
+                event.preventDefault();
+                sellOrder();
+            }
+            // Ctrl+C برای بستن پوزیشن
+            if (event.ctrlKey && event.key === 'c') {
+                event.preventDefault();
+                closePosition();
+            }
+        });
+    </script>
+</body>
+</html>
